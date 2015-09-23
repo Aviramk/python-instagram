@@ -122,7 +122,7 @@ def bind_method(**config):
                 signature = hmac.new(secret, ips, sha256).hexdigest()
                 headers['X-Insta-Forwarded-For'] = '|'.join([ips, signature])
 
-            response, content = OAuth2Request(self.api).make_request(url, method=method, body=body, headers=headers)
+            response, content = OAuth2Request(self.api, proxy_info=self.api.proxy_info).make_request(url, method=method, body=body, headers=headers)
             if response['status'] == '503' or response['status'] == '429':
                 raise InstagramAPIError(response['status'], "Rate limited", "Your client is making too many request per second")
             try:
@@ -177,7 +177,7 @@ def bind_method(**config):
             return content, next
 
         def execute(self):
-            url, method, body, headers = OAuth2Request(self.api).prepare_request(self.method,
+            url, method, body, headers = OAuth2Request(self.api, proxy_info=self.api.proxy_info).prepare_request(self.method,
                                                                                  self.path,
                                                                                  self.parameters,
                                                                                  include_secret=self.include_secret)

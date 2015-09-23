@@ -20,12 +20,14 @@ class InstagramAPI(oauth2.OAuth2API):
     x_ratelimit_remaining  = None
     x_ratelimit = None
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, proxy_info=None, *args, **kwargs):
         format = kwargs.get('format', 'json')
         if format in SUPPORTED_FORMATS:
             self.format = format
         else:
             raise Exception("Unsupported format")
+
+        self.proxy_info = proxy_info
         super(InstagramAPI, self).__init__(**kwargs)
 
     media_popular = bind_method(

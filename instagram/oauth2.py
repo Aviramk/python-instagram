@@ -40,28 +40,28 @@ class OAuth2API(object):
         self.client_ips = client_ips
         self.access_token = access_token
         self.redirect_uri = redirect_uri
-        self.proxy_info - proxy_info
+        self.proxy_info = proxy_info
 
     def get_authorize_url(self, scope=None):
-        req = OAuth2AuthExchangeRequest(self)
+        req = OAuth2AuthExchangeRequest(self, proxy_info=self.proxy_info)
         return req.get_authorize_url(scope=scope)
 
     def get_authorize_login_url(self, scope=None):
         """ scope should be a tuple or list of requested scope access levels """
-        req = OAuth2AuthExchangeRequest(self)
+        req = OAuth2AuthExchangeRequest(self, proxy_info=self.proxy_info)
         return req.get_authorize_login_url(scope=scope)
 
     def exchange_code_for_access_token(self, code):
-        req = OAuth2AuthExchangeRequest(self)
+        req = OAuth2AuthExchangeRequest(self, proxy_info=self.proxy_info)
         return req.exchange_for_access_token(code=code)
 
     def exchange_user_id_for_access_token(self, user_id):
-        req = OAuth2AuthExchangeRequest(self)
+        req = OAuth2AuthExchangeRequest(self, proxy_info=self.proxy_info)
         return req.exchange_for_access_token(user_id=user_id)
 
     def exchange_xauth_login_for_access_token(self, username, password, scope=None):
         """ scope should be a tuple or list of requested scope access levels """
-        req = OAuth2AuthExchangeRequest(self)
+        req = OAuth2AuthExchangeRequest(self, proxy_info=self.proxy_info)
         return req.exchange_for_access_token(username=username, password=password,
                                              scope=scope)
 
