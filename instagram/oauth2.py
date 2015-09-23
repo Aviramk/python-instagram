@@ -8,6 +8,7 @@ import hmac
 
 
 class OAuth2AuthExchangeError(Exception):
+
     def __init__(self, description):
         self.description = description
 
@@ -27,12 +28,19 @@ class OAuth2API(object):
     # override with 'Instagram', etc
     api_name = "Generic API"
 
-    def __init__(self, client_id=None, client_secret=None, client_ips=None, access_token=None, redirect_uri=None):
+    def __init__(self,
+                 client_id=None,
+                 client_secret=None,
+                 client_ips=None,
+                 access_token=None,
+                 redirect_uri=None,
+                 proxy_info=None):
         self.client_id = client_id
         self.client_secret = client_secret
         self.client_ips = client_ips
         self.access_token = access_token
         self.redirect_uri = redirect_uri
+        self.proxy_info - proxy_info
 
     def get_authorize_url(self, scope=None):
         req = OAuth2AuthExchangeRequest(self)
@@ -59,8 +67,10 @@ class OAuth2API(object):
 
 
 class OAuth2AuthExchangeRequest(object):
-    def __init__(self, api):
+
+    def __init__(self, api, proxy_info=None):
         self.api = api
+        self.proxy_info = proxy_info
 
     def _url_for_authorize(self, scope=None):
         client_params = {
@@ -96,29 +106,41 @@ class OAuth2AuthExchangeRequest(object):
         return self._url_for_authorize(scope=scope)
 
     def get_authorize_login_url(self, scope=None):
-        http_object = Http(disable_ssl_certificate_validation=True)
+        http_object = Http(
+            disable_ssl_certificate_validation=True, proxy_info=self.proxy_info)
 
         url = self._url_for_authorize(scope=scope)
         response, content = http_object.request(url)
         if response['status'] != '200':
-            raise OAuth2AuthExchangeError("The server returned a non-200 response for URL %s" % url)
+            raise OAuth2AuthExchangeError(
+                "The server returned a non-200 response for URL %s" % url)
         redirected_to = response['content-location']
         return redirected_to
 
-    def exchange_for_access_token(self, code=None, username=None, password=None, scope=None, user_id=None):
-        data = self._data_for_exchange(code, username, password, scope=scope, user_id=user_id)
-        http_object = Http(disable_ssl_certificate_validation=True)
+    def exchange_for_access_token(self,
+                                  code=None,
+                                  username=None,
+                                  password=None,
+                                  scope=None,
+                                  user_id=None):
+        data = self._data_for_exchange(
+            code, username, password, scope=scope, user_id=user_id)
+        http_object = Http(
+            disable_ssl_certificate_validation=True, proxy_info=self.proxy_info)
         url = self.api.access_token_url
         response, content = http_object.request(url, method="POST", body=data)
         parsed_content = simplejson.loads(content.decode())
         if int(response['status']) != 200:
-            raise OAuth2AuthExchangeError(parsed_content.get("error_message", ""))
+            raise OAuth2AuthExchangeError(
+                parsed_content.get("error_message", ""))
         return parsed_content['access_token'], parsed_content['user']
 
 
 class OAuth2Request(object):
-    def __init__(self, api):
+
+    def __init__(self, api, proxy_info=None):
         self.api = api
+        self.proxy_info = proxy_info
 
     def _generate_sig(self, endpoint, params, secret):
         sig = endpoint
@@ -137,14 +159,14 @@ class OAuth2Request(object):
 
     def _full_url(self, path, include_secret=False, include_signed_request=True):
         return "%s://%s%s%s%s%s" % (self.api.protocol,
-                                  self.api.host,
-                                  self.api.base_path,
-                                  path,
-                                  self._auth_query(include_secret),
-                                  self._signed_request(path, {}, include_signed_request, include_secret))
+                                    self.api.host,
+                                    self.api.base_path,
+                                    path,
+                                    self._auth_query(include_secret),
+                                    self._signed_request(path, {}, include_signed_request, include_secret))
 
     def _full_url_with_params(self, path, params, include_secret=False, include_signed_request=True):
-        return (self._full_url(path, include_secret) + 
+        return (self._full_url(path, include_secret) +
                 self._full_query_with_params(params) +
                 self._signed_request(path, params, include_signed_request, include_secret))
 
@@ -190,7 +212,8 @@ class OAuth2Request(object):
         def encode_file(field_name):
             file_name, file_handle = files[field_name]
             return ("--" + boundary,
-                    'Content-Disposition: form-data; name="%s"; filename="%s"' % (field_name, file_name),
+                    'Content-Disposition: form-data; name="%s"; filename="%s"' % (
+                        field_name, file_name),
                     "Content-Type: " + get_content_type(file_name),
                     "", file_handle.read())
 
@@ -208,7 +231,8 @@ class OAuth2Request(object):
         return body, headers
 
     def prepare_and_make_request(self, method, path, params, include_secret=False):
-        url, method, body, headers = self.prepare_request(method, path, params, include_secret)
+        url, method, body, headers = self.prepare_request(
+            method, path, params, include_secret)
         return self.make_request(url, method, body, headers)
 
     def prepare_request(self, method, path, params, include_secret=False):
@@ -231,8 +255,11 @@ class OAuth2Request(object):
     def make_request(self, url, method="GET", body=None, headers=None):
         headers = headers or {}
         if not 'User-Agent' in headers:
-            headers.update({"User-Agent": "%s Python Client" % self.api.api_name})
+            headers.update(
+                {"User-Agent": "%s Python Client" % self.api.api_name})
         # https://github.com/jcgregorio/httplib2/issues/173
-        # bug in httplib2 w/ Python 3 and disable_ssl_certificate_validation=True
-        http_obj = Http() if six.PY3 else Http(disable_ssl_certificate_validation=True)        
+        # bug in httplib2 w/ Python 3 and
+        # disable_ssl_certificate_validation=True
+        http_obj = Http(proxy_info=self.proxy_info) if six.PY3 else Http(
+            disable_ssl_certificate_validation=True, proxy_info=self.proxy_info)
         return http_obj.request(url, method, body=body, headers=headers)
